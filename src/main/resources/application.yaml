@@ -1,0 +1,3 @@
+spring:
+  application:
+    name: tfm-ds-backend-patients
