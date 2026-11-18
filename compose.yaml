@@ -9,7 +9,7 @@ services:
     volumes:
       - patients_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U users -d users"]
+      test: ["CMD-SHELL", "pg_isready -U patients -d patients"]
       interval: 5s
       timeout: 5s
       retries: 10
