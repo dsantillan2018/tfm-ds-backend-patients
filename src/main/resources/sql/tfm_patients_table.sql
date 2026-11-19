@@ -30,3 +30,6 @@ CREATE TABLE IF NOT EXISTS tfm_patients_dentists (
     CONSTRAINT unique_patient_dentist UNIQUE (patient_id, dentist_id)
 );
 
+-- Create an index on the patient_id column for faster lookups
+CREATE INDEX idx_patients_dentist_dentist_id
+    ON tfm_patients_dentists (dentist_id);
