@@ -1,0 +1,34 @@
+package com.dsantillan.tfm.patients.service;
+
+import com.dsantillan.tfm.patients.mapper.PatientMapper;
+import com.dsantillan.tfm.patients.model.dto.PatientDto;
+import com.dsantillan.tfm.patients.model.dto.PatientResponseDto;
+import com.dsantillan.tfm.patients.model.entity.Patient;
+import com.dsantillan.tfm.patients.model.entity.PatientDentist;
+import com.dsantillan.tfm.patients.repository.PatientRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class PatientServiceImpl implements PatientService {
+
+    private final PatientRepository patientRepository;
+    private final PatientMapper patientMapper;
+
+    @Override
+    @Transactional
+    public PatientResponseDto createPatient(PatientDto request, UUID dentistId) {
+        Patient patient = patientMapper.toPatient(request);
+        Patient savedPatient = patientRepository.save(patient);
+        PatientDentist patientDentist = PatientDentist.builder()
+                .patient(savedPatient)
+                .dentistId(dentistId)
+                .build();
+        patientRepository.savePatientDentist(patientDentist);
+        return patientMapper.toPatientResponseDto(savedPatient);
+    }
+}
