@@ -1,11 +1,16 @@
 package com.dsantillan.tfm.patients.service;
 
+import com.dsantillan.tfm.common.model.dto.PageResponseDto;
 import com.dsantillan.tfm.patients.model.dto.PatientDto;
 import com.dsantillan.tfm.patients.model.dto.PatientResponseDto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.UUID;
 
 public interface PatientService {
+
+    PageResponseDto<PatientResponseDto> getPatientsByDentistId(UUID dentistId, Pageable pageable);
 
     PatientResponseDto createPatient(PatientDto request, UUID dentistId);
 }
