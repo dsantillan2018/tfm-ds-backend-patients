@@ -1,6 +1,7 @@
 package com.dsantillan.tfm.patients.exception;
 
 import com.dsantillan.tfm.common.exception.CommonExceptionResponse;
+import com.dsantillan.tfm.common.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,6 +42,13 @@ public class PatientsExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 "Validation failed: " + validationErrors);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<CommonExceptionResponse> handleNotFound(
+            ResourceNotFoundException ex) {
+        log.warn(ex.getMessage(), ex);
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -17,6 +18,10 @@ public class PatientRepository {
 
     private final PatientJpaRepository patientJpaRepository;
     private final PatientDentistJpaRepository patientDentistJpaRepository;
+
+    public Optional<Patient> findPatientByIdAndDentistId(long patientId, UUID dentistId) {
+        return patientDentistJpaRepository.findPatientByPatientIdAndDentistId(patientId, dentistId, PatientStatus.ACTIVE);
+    }
 
     public Page<Patient> findPatientsByDentistId(UUID dentistId, Pageable pageable) {
         return patientDentistJpaRepository.findPatientsByDentistId(dentistId, PatientStatus.ACTIVE, pageable);

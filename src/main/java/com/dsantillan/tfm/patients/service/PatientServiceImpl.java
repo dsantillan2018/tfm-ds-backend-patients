@@ -1,5 +1,6 @@
 package com.dsantillan.tfm.patients.service;
 
+import com.dsantillan.tfm.common.exception.ResourceNotFoundException;
 import com.dsantillan.tfm.common.model.dto.PageResponseDto;
 import com.dsantillan.tfm.patients.mapper.PatientMapper;
 import com.dsantillan.tfm.patients.model.dto.PatientDto;
@@ -21,6 +22,13 @@ public class PatientServiceImpl implements PatientService {
 
     private final PatientRepository patientRepository;
     private final PatientMapper patientMapper;
+
+    @Override
+    public PatientResponseDto getPatientByIdAndDentistId(long patientId, UUID dentistId) {
+        return patientRepository.findPatientByIdAndDentistId(patientId, dentistId)
+                .map(patientMapper::toPatientResponseDto)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient not found"));
+    }
 
     @Override
     public PageResponseDto<PatientResponseDto> getPatientsByDentistId(UUID dentistId, Pageable pageable) {
