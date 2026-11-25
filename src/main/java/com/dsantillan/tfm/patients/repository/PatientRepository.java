@@ -27,6 +27,11 @@ public class PatientRepository {
         return patientDentistJpaRepository.findPatientsByDentistId(dentistId, PatientStatus.ACTIVE, pageable);
     }
 
+    public Optional<PatientDentist> findPatientDentistByPatientIdAndDentistId(long patientId, UUID dentistId) {
+        return patientDentistJpaRepository
+                .findByPatient_PatientIdAndDentistIdAndStatus(patientId, dentistId, PatientStatus.ACTIVE);
+    }
+
     public Patient save(Patient patient) {
         return patientJpaRepository.save(patient);
     }

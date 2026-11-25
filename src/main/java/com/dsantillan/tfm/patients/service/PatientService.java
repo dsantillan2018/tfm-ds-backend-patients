@@ -16,4 +16,6 @@ public interface PatientService {
     PageResponseDto<PatientResponseDto> getPatientsByDentistId(UUID dentistId, Pageable pageable);
 
     PatientResponseDto createPatient(PatientDto request, UUID dentistId);
+
+    void removePatient(long patientId, UUID dentistId);
 }

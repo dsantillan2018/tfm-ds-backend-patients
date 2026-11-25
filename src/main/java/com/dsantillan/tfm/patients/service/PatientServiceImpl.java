@@ -7,6 +7,7 @@ import com.dsantillan.tfm.patients.model.dto.PatientDto;
 import com.dsantillan.tfm.patients.model.dto.PatientResponseDto;
 import com.dsantillan.tfm.patients.model.entity.Patient;
 import com.dsantillan.tfm.patients.model.entity.PatientDentist;
+import com.dsantillan.tfm.patients.model.enums.PatientStatus;
 import com.dsantillan.tfm.patients.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -54,5 +55,15 @@ public class PatientServiceImpl implements PatientService {
                 .build();
         patientRepository.savePatientDentist(patientDentist);
         return patientMapper.toPatientResponseDto(savedPatient);
+    }
+
+    @Override
+    @Transactional
+    public void removePatient(long patientId, UUID dentistId) {
+        PatientDentist patientDentist = patientRepository
+                .findPatientDentistByPatientIdAndDentistId(patientId, dentistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient not found"));
+        // Mark the patientDentist as inactive instead of deleting it through dirty checking the status
+        patientDentist.setStatus(PatientStatus.INACTIVE);
     }
 }

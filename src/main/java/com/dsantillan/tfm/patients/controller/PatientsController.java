@@ -16,7 +16,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -55,5 +54,15 @@ public class PatientsController {
         UUID dentistId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         PatientResponseDto response = patientService.createPatient(request, dentistId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @DeleteMapping("/dentists/{dentistId}/patients/{patientId}")
+    @PreAuthorize("hasRole(T(com.dsantillan.tfm.common.security.auth.Roles).DENTIST_ROLE) " +
+            "and #dentistId == authentication.principal.subject")
+    public ResponseEntity<Void> removePatient(
+            @PathVariable("patientId") long patientId,
+            @PathVariable("dentistId") String dentistId) {
+        patientService.removePatient(patientId, UUID.fromString(dentistId));
+        return ResponseEntity.noContent().build();
     }
 }

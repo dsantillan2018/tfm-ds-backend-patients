@@ -27,4 +27,10 @@ public interface PatientDentistJpaRepository extends JpaRepository<PatientDentis
             " AND pd.status = :status"
     )
     Optional<Patient> findPatientByPatientIdAndDentistId(long patientId, UUID dentistId, PatientStatus status);
+
+    Optional<PatientDentist> findByPatient_PatientIdAndDentistIdAndStatus(
+            Long patientId,
+            UUID dentistId,
+            PatientStatus status
+    );
 }
