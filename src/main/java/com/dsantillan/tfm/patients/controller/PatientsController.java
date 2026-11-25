@@ -1,13 +1,11 @@
 package com.dsantillan.tfm.patients.controller;
 
 import com.dsantillan.tfm.common.model.dto.PageResponseDto;
-import com.dsantillan.tfm.common.security.auth.Roles;
 import com.dsantillan.tfm.patients.model.dto.PatientDto;
 import com.dsantillan.tfm.patients.model.dto.PatientResponseDto;
 import com.dsantillan.tfm.patients.service.PatientService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -25,6 +23,16 @@ import java.util.UUID;
 public class PatientsController {
 
     private final PatientService patientService;
+
+    @GetMapping("/dentists/{dentistId}/patients/{patientId}")
+    @PreAuthorize("hasRole(T(com.dsantillan.tfm.common.security.auth.Roles).DENTIST_ROLE) " +
+            "and #dentistId == authentication.principal.subject")
+    public ResponseEntity<PatientResponseDto> getPatientByIdAndDentistId(
+            @PathVariable("patientId") long patientId,
+            @PathVariable("dentistId") String dentistId) {
+        PatientResponseDto patient = patientService.getPatientByIdAndDentistId(patientId, UUID.fromString(dentistId));
+        return ResponseEntity.ok(patient);
+    }
 
     @GetMapping("/dentists/{dentistId}/patients")
     @PreAuthorize("hasRole(T(com.dsantillan.tfm.common.security.auth.Roles).DENTIST_ROLE) " +
@@ -46,5 +54,15 @@ public class PatientsController {
         UUID dentistId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         PatientResponseDto response = patientService.createPatient(request, dentistId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @DeleteMapping("/dentists/{dentistId}/patients/{patientId}")
+    @PreAuthorize("hasRole(T(com.dsantillan.tfm.common.security.auth.Roles).DENTIST_ROLE) " +
+            "and #dentistId == authentication.principal.subject")
+    public ResponseEntity<Void> removePatient(
+            @PathVariable("patientId") long patientId,
+            @PathVariable("dentistId") String dentistId) {
+        patientService.removePatient(patientId, UUID.fromString(dentistId));
+        return ResponseEntity.noContent().build();
     }
 }

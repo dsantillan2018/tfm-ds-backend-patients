@@ -1,11 +1,13 @@
 package com.dsantillan.tfm.patients.service;
 
 import com.dsantillan.tfm.common.model.dto.PageResponseDto;
+import com.dsantillan.tfm.common.exception.ResourceNotFoundException;
 import com.dsantillan.tfm.patients.mapper.PatientMapper;
 import com.dsantillan.tfm.patients.model.dto.PatientDto;
 import com.dsantillan.tfm.patients.model.dto.PatientResponseDto;
 import com.dsantillan.tfm.patients.model.entity.Patient;
 import com.dsantillan.tfm.patients.model.entity.PatientDentist;
+import com.dsantillan.tfm.patients.model.enums.PatientStatus;
 import com.dsantillan.tfm.patients.repository.PatientRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,10 +21,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -84,6 +88,79 @@ class PatientServiceImplTest {
         verify(patientMapper).toPatientResponseDto(savedPatient);
         assertSame(savedPatient, patientDentistCaptor.getValue().getPatient());
         assertEquals(dentistId, patientDentistCaptor.getValue().getDentistId());
+        verifyNoMoreInteractions(patientRepository, patientMapper);
+    }
+
+    @Test
+    void getPatientByIdAndDentistId_returnsMappedPatient() {
+        long patientId = 1L;
+        UUID dentistId = UUID.randomUUID();
+        Patient patient = Patient.builder().patientId(patientId).firstName("Jane").build();
+        PatientResponseDto response =
+                PatientResponseDto.builder().patientId(patientId).firstName("Jane").build();
+
+        when(patientRepository.findPatientByIdAndDentistId(patientId, dentistId))
+                .thenReturn(Optional.of(patient));
+        when(patientMapper.toPatientResponseDto(patient)).thenReturn(response);
+
+        assertSame(response, patientService.getPatientByIdAndDentistId(patientId, dentistId));
+
+        verify(patientRepository).findPatientByIdAndDentistId(patientId, dentistId);
+        verify(patientMapper).toPatientResponseDto(patient);
+        verifyNoMoreInteractions(patientRepository, patientMapper);
+    }
+
+    @Test
+    void getPatientByIdAndDentistId_throwsWhenPatientDoesNotExist() {
+        long patientId = 1L;
+        UUID dentistId = UUID.randomUUID();
+
+        when(patientRepository.findPatientByIdAndDentistId(patientId, dentistId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> patientService.getPatientByIdAndDentistId(patientId, dentistId));
+
+        assertEquals("Patient not found", exception.getMessage());
+        verify(patientRepository).findPatientByIdAndDentistId(patientId, dentistId);
+        verifyNoMoreInteractions(patientRepository, patientMapper);
+    }
+
+    @Test
+    void removePatient_marksAssociationAsInactive() {
+        long patientId = 1L;
+        UUID dentistId = UUID.randomUUID();
+        PatientDentist patientDentist = PatientDentist.builder()
+                .patient(Patient.builder().patientId(patientId).build())
+                .dentistId(dentistId)
+                .status(PatientStatus.ACTIVE)
+                .build();
+
+        when(patientRepository.findPatientDentistByPatientIdAndDentistId(patientId, dentistId))
+                .thenReturn(Optional.of(patientDentist));
+
+        patientService.removePatient(patientId, dentistId);
+
+        assertEquals(PatientStatus.INACTIVE, patientDentist.getStatus());
+        verify(patientRepository).findPatientDentistByPatientIdAndDentistId(patientId, dentistId);
+        verifyNoMoreInteractions(patientRepository, patientMapper);
+    }
+
+    @Test
+    void removePatient_throwsWhenAssociationDoesNotExist() {
+        long patientId = 1L;
+        UUID dentistId = UUID.randomUUID();
+
+        when(patientRepository.findPatientDentistByPatientIdAndDentistId(patientId, dentistId))
+                .thenReturn(Optional.empty());
+
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> patientService.removePatient(patientId, dentistId));
+
+        assertEquals("Patient not found", exception.getMessage());
+        verify(patientRepository).findPatientDentistByPatientIdAndDentistId(patientId, dentistId);
         verifyNoMoreInteractions(patientRepository, patientMapper);
     }
 }
