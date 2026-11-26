@@ -2,6 +2,7 @@ package com.dsantillan.tfm.patients.model.dto;
 
 import com.dsantillan.tfm.common.identification.model.enums.IdentificationType;
 import com.dsantillan.tfm.common.model.enums.Gender;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -46,4 +47,7 @@ public class PatientResponseDto {
 
     @NotNull(message = "Gender is required")
     private Gender gender;
+
+    @JsonIgnore
+    private long version; // Add the version field for optimistic locking
 }

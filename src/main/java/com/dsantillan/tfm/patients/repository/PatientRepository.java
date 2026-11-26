@@ -36,6 +36,10 @@ public class PatientRepository {
         return patientJpaRepository.save(patient);
     }
 
+    public Patient update(Patient patient) {
+        return patientJpaRepository.save(patient);
+    }
+
     public void savePatientDentist(PatientDentist patientDentist) {
         patientDentistJpaRepository.save(patientDentist);
     }

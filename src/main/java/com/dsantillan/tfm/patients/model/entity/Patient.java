@@ -57,4 +57,9 @@ public class Patient extends AuditableEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
     private PatientStatus status = PatientStatus.ACTIVE;
+
+    // Version field for optimistic locking, not included in dto and not exposed in API responses
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 }

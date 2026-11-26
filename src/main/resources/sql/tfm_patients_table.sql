@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS tfm_patients (
     updated_at TIMESTAMP WITH TIME ZONE,
     created_by VARCHAR(100),
     updated_by VARCHAR(100),
-    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE'
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+    version BIGINT NOT NULL DEFAULT 0
 );
 
 -- Table to store the relationship between patients and dentists

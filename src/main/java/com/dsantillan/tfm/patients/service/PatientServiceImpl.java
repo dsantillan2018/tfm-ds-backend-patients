@@ -1,7 +1,10 @@
 package com.dsantillan.tfm.patients.service;
 
+import com.dsantillan.tfm.common.exception.PreconditionFailedException;
 import com.dsantillan.tfm.common.exception.ResourceNotFoundException;
+import com.dsantillan.tfm.common.mapper.PatchMapper;
 import com.dsantillan.tfm.common.model.dto.PageResponseDto;
+import com.dsantillan.tfm.common.validation.PatchValidator;
 import com.dsantillan.tfm.patients.mapper.PatientMapper;
 import com.dsantillan.tfm.patients.model.dto.PatientDto;
 import com.dsantillan.tfm.patients.model.dto.PatientResponseDto;
@@ -15,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -22,7 +26,24 @@ import java.util.UUID;
 public class PatientServiceImpl implements PatientService {
 
     private final PatientRepository patientRepository;
+
     private final PatientMapper patientMapper;
+
+    private final PatchValidator patchValidator;
+
+    private final PatchMapper patchMapper;
+
+    // Define the allowed fields for patching
+    private static final Set<String> ALLOWED_PATCH_FIELDS = Set.of(
+            "firstName",
+            "lastName",
+            "email",
+            "documentNumber",
+            "documentType",
+            "birthDate",
+            "phoneNumber",
+            "gender"
+    );
 
     @Override
     public PatientResponseDto getPatientByIdAndDentistId(long patientId, UUID dentistId) {
@@ -55,6 +76,38 @@ public class PatientServiceImpl implements PatientService {
                 .build();
         patientRepository.savePatientDentist(patientDentist);
         return patientMapper.toPatientResponseDto(savedPatient);
+    }
+
+    @Override
+    @Transactional
+    public PatientResponseDto updatePatient(String request, long patientId, UUID dentistId, long version) {
+        // Validate the fields in the patch request against the allowed fields for patching
+        patchValidator.validateFields(request, ALLOWED_PATCH_FIELDS);
+
+        // Fetch the original patient entity to be updated
+        Patient originalPatient = patientRepository.findPatientByIdAndDentistId(patientId, dentistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient not found"));
+
+        // Validate the expected version
+        if (originalPatient.getVersion() != version) {
+            throw new PreconditionFailedException(
+                    "Patient has been modified by another user, check new changes and try again."
+            );
+        }
+
+        // Apply the patch to the original patient entity and map it to a PatientDto
+        PatientDto patchedPatientDto = patchMapper.applyPatch(request, patientMapper.toPatientDto(originalPatient));
+
+        // Validate the patched PatientDto
+        patchValidator.validatePatch(patchedPatientDto);
+
+        // Update the original patient entity with the patched PatientDto
+        patientMapper.updatePatientFromDto(patchedPatientDto, originalPatient);
+
+        // Save the updated patient entity to the database
+        Patient updatedPatient = patientRepository.update(originalPatient);
+
+        return patientMapper.toPatientResponseDto(updatedPatient);
     }
 
     @Override

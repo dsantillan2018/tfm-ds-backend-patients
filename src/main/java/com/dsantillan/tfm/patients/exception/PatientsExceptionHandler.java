@@ -1,6 +1,7 @@
 package com.dsantillan.tfm.patients.exception;
 
 import com.dsantillan.tfm.common.exception.CommonExceptionResponse;
+import com.dsantillan.tfm.common.exception.PreconditionFailedException;
 import com.dsantillan.tfm.common.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -42,6 +43,13 @@ public class PatientsExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 "Validation failed: " + validationErrors);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<CommonExceptionResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex) {
+        log.warn("Illegal argument provided", ex);
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -93,6 +101,13 @@ public class PatientsExceptionHandler {
         return buildResponse(
                 HttpStatus.FORBIDDEN,
                 "You are not authorized to perform this action");
+    }
+
+    @ExceptionHandler(PreconditionFailedException.class)
+    public ResponseEntity<CommonExceptionResponse> handlePreconditionFailedException(
+            PreconditionFailedException ex) {
+        log.warn(ex.getMessage(), ex);
+        return buildResponse(HttpStatus.PRECONDITION_FAILED, ex.getMessage());
     }
 
     private ResponseEntity<CommonExceptionResponse> buildResponse(

@@ -17,5 +17,7 @@ public interface PatientService {
 
     PatientResponseDto createPatient(PatientDto request, UUID dentistId);
 
+    PatientResponseDto updatePatient(String request, long patientId, UUID dentistId, long version);
+
     void removePatient(long patientId, UUID dentistId);
 }

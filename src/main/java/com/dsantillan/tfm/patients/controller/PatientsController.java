@@ -31,7 +31,9 @@ public class PatientsController {
             @PathVariable("patientId") long patientId,
             @PathVariable("dentistId") String dentistId) {
         PatientResponseDto patient = patientService.getPatientByIdAndDentistId(patientId, UUID.fromString(dentistId));
-        return ResponseEntity.ok(patient);
+        return ResponseEntity.ok()
+                .eTag(String.valueOf(patient.getVersion())) // Set the ETag header with the patient's version
+                .body(patient);
     }
 
     @GetMapping("/dentists/{dentistId}/patients")
@@ -54,6 +56,21 @@ public class PatientsController {
         UUID dentistId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         PatientResponseDto response = patientService.createPatient(request, dentistId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PatchMapping("/dentists/{dentistId}/patients/{patientId}")
+    @PreAuthorize("hasRole(T(com.dsantillan.tfm.common.security.auth.Roles).DENTIST_ROLE) " +
+            "and #dentistId == authentication.principal.subject")
+    public ResponseEntity<PatientResponseDto> updatePatient(
+            @PathVariable("patientId") long patientId,
+            @PathVariable("dentistId") String dentistId,
+            @RequestHeader("If-Match") long version,
+            @RequestBody String request) {
+        PatientResponseDto response = patientService
+                .updatePatient(request, patientId, UUID.fromString(dentistId), version);
+        return ResponseEntity.ok()
+                .eTag(String.valueOf(response.getVersion())) // Set the ETag header with the updated patient's version
+                .body(response);
     }
 
     @DeleteMapping("/dentists/{dentistId}/patients/{patientId}")
