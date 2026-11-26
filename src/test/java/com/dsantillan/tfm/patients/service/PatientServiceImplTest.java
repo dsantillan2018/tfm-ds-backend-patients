@@ -1,7 +1,10 @@
 package com.dsantillan.tfm.patients.service;
 
-import com.dsantillan.tfm.common.model.dto.PageResponseDto;
+import com.dsantillan.tfm.common.exception.PreconditionFailedException;
 import com.dsantillan.tfm.common.exception.ResourceNotFoundException;
+import com.dsantillan.tfm.common.mapper.PatchMapper;
+import com.dsantillan.tfm.common.model.dto.PageResponseDto;
+import com.dsantillan.tfm.common.validation.PatchValidator;
 import com.dsantillan.tfm.patients.mapper.PatientMapper;
 import com.dsantillan.tfm.patients.model.dto.PatientDto;
 import com.dsantillan.tfm.patients.model.dto.PatientResponseDto;
@@ -22,12 +25,18 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -39,6 +48,12 @@ class PatientServiceImplTest {
 
     @Mock
     private PatientMapper patientMapper;
+
+    @Mock
+    private PatchValidator patchValidator;
+
+    @Mock
+    private PatchMapper patchMapper;
 
     @InjectMocks
     private PatientServiceImpl patientService;
@@ -125,6 +140,143 @@ class PatientServiceImplTest {
         assertEquals("Patient not found", exception.getMessage());
         verify(patientRepository).findPatientByIdAndDentistId(patientId, dentistId);
         verifyNoMoreInteractions(patientRepository, patientMapper);
+    }
+
+    @Test
+    void updatePatient_appliesValidatedPatchAndSavesPatient() {
+        String request = "{\"firstName\":\"Janet\"}";
+        long patientId = 1L;
+        long version = 3L;
+        UUID dentistId = UUID.randomUUID();
+        Patient originalPatient = Patient.builder()
+                .patientId(patientId)
+                .version(version)
+                .build();
+        PatientDto originalDto = PatientDto.builder().firstName("Jane").build();
+        PatientDto patchedDto = PatientDto.builder().firstName("Janet").build();
+        Patient updatedPatient = Patient.builder()
+                .patientId(patientId)
+                .firstName("Janet")
+                .version(version + 1)
+                .build();
+        PatientResponseDto response = PatientResponseDto.builder()
+                .patientId(patientId)
+                .firstName("Janet")
+                .build();
+
+        when(patientRepository.findPatientByIdAndDentistId(patientId, dentistId))
+                .thenReturn(Optional.of(originalPatient));
+        when(patientMapper.toPatientDto(originalPatient)).thenReturn(originalDto);
+        when(patchMapper.applyPatch(request, originalDto)).thenReturn(patchedDto);
+        when(patientRepository.update(originalPatient)).thenReturn(updatedPatient);
+        when(patientMapper.toPatientResponseDto(updatedPatient)).thenReturn(response);
+
+        assertSame(response, patientService.updatePatient(request, patientId, dentistId, version));
+
+        verify(patchValidator).validateFields(request, Set.of(
+                "firstName", "lastName", "email", "documentNumber", "documentType",
+                "birthDate", "phoneNumber", "gender"));
+        verify(patientRepository).findPatientByIdAndDentistId(patientId, dentistId);
+        verify(patientMapper).toPatientDto(originalPatient);
+        verify(patchMapper).applyPatch(request, originalDto);
+        verify(patchValidator).validatePatch(patchedDto);
+        verify(patientMapper).updatePatientFromDto(patchedDto, originalPatient);
+        verify(patientRepository).update(originalPatient);
+        verify(patientMapper).toPatientResponseDto(updatedPatient);
+        verifyNoMoreInteractions(patientRepository, patientMapper, patchValidator, patchMapper);
+    }
+
+    @Test
+    void updatePatient_throwsWhenPatientDoesNotExist() {
+        String request = "{\"firstName\":\"Janet\"}";
+        long patientId = 1L;
+        UUID dentistId = UUID.randomUUID();
+
+        when(patientRepository.findPatientByIdAndDentistId(patientId, dentistId))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                ResourceNotFoundException.class,
+                () -> patientService.updatePatient(request, patientId, dentistId, 0L));
+
+        verify(patchValidator).validateFields(request, Set.of(
+                "firstName", "lastName", "email", "documentNumber", "documentType",
+                "birthDate", "phoneNumber", "gender"));
+        verify(patientRepository).findPatientByIdAndDentistId(patientId, dentistId);
+        verifyNoInteractions(patientMapper, patchMapper);
+        verifyNoMoreInteractions(patientRepository, patchValidator);
+    }
+
+    @Test
+    void updatePatient_throwsWhenVersionDoesNotMatch() {
+        String request = "{\"firstName\":\"Janet\"}";
+        long patientId = 1L;
+        UUID dentistId = UUID.randomUUID();
+        Patient originalPatient = Patient.builder().patientId(patientId).version(2L).build();
+
+        when(patientRepository.findPatientByIdAndDentistId(patientId, dentistId))
+                .thenReturn(Optional.of(originalPatient));
+
+        assertThrows(
+                PreconditionFailedException.class,
+                () -> patientService.updatePatient(request, patientId, dentistId, 1L));
+
+        verify(patchValidator).validateFields(request, Set.of(
+                "firstName", "lastName", "email", "documentNumber", "documentType",
+                "birthDate", "phoneNumber", "gender"));
+        verify(patientRepository).findPatientByIdAndDentistId(patientId, dentistId);
+        verifyNoInteractions(patientMapper, patchMapper);
+        verifyNoMoreInteractions(patientRepository, patchValidator);
+    }
+
+    @Test
+    void updatePatient_stopsWhenFieldsAreInvalid() {
+        String request = "{\"status\":\"INACTIVE\"}";
+        long patientId = 1L;
+        UUID dentistId = UUID.randomUUID();
+        doThrow(new IllegalArgumentException("Field is not allowed for update: status"))
+                .when(patchValidator).validateFields(eq(request), anySet());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> patientService.updatePatient(request, patientId, dentistId, 0L));
+
+        verify(patchValidator).validateFields(request, Set.of(
+                "firstName", "lastName", "email", "documentNumber", "documentType",
+                "birthDate", "phoneNumber", "gender"));
+        verifyNoInteractions(patientRepository, patientMapper, patchMapper);
+        verifyNoMoreInteractions(patchValidator);
+    }
+
+    @Test
+    void updatePatient_doesNotSaveWhenPatchedDtoIsInvalid() {
+        String request = "{\"firstName\":\"\"}";
+        long patientId = 1L;
+        UUID dentistId = UUID.randomUUID();
+        Patient originalPatient = Patient.builder().patientId(patientId).version(0L).build();
+        PatientDto originalDto = PatientDto.builder().firstName("Jane").build();
+        PatientDto patchedDto = PatientDto.builder().firstName("").build();
+
+        when(patientRepository.findPatientByIdAndDentistId(patientId, dentistId))
+                .thenReturn(Optional.of(originalPatient));
+        when(patientMapper.toPatientDto(originalPatient)).thenReturn(originalDto);
+        when(patchMapper.applyPatch(request, originalDto)).thenReturn(patchedDto);
+        doThrow(new IllegalArgumentException("Invalid patch object"))
+                .when(patchValidator).validatePatch(patchedDto);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> patientService.updatePatient(request, patientId, dentistId, 0L));
+
+        verify(patchValidator).validateFields(request, Set.of(
+                "firstName", "lastName", "email", "documentNumber", "documentType",
+                "birthDate", "phoneNumber", "gender"));
+        verify(patientRepository).findPatientByIdAndDentistId(patientId, dentistId);
+        verify(patientMapper).toPatientDto(originalPatient);
+        verify(patchMapper).applyPatch(request, originalDto);
+        verify(patchValidator).validatePatch(patchedDto);
+        verify(patientRepository, never()).update(originalPatient);
+        verifyNoMoreInteractions(patientRepository, patientMapper, patchMapper, patchValidator);
     }
 
     @Test
